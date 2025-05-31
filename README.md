@@ -6,7 +6,7 @@ perfect for what im studying right now
 
 ## Features:
 
-The features this project will have is:
+The features this project will have:
 
 ### Server
 
