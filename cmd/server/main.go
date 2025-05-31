@@ -31,7 +31,7 @@ func main() {
 	go hub.HandleEvents()
 
 	router := gin.Default()
-	ws := router.Group("/ws")
-	ws.GET("/connect", hub.Connect)
+	ws := router.Group("/")
+	ws.GET("/ws", hub.Connect)
 	router.Run(port)
 }
