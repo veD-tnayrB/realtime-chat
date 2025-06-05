@@ -13,7 +13,7 @@ type View struct {
 	Session *models.Session
 }
 
-func (v *View) Init() {
+func (v *View) Init() *gocui.Gui {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		log.Panicln(err)
@@ -30,6 +30,7 @@ func (v *View) Init() {
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
+	return g
 }
 
 func (v *View) setLayout(g *gocui.Gui) error {
@@ -39,6 +40,6 @@ func (v *View) setLayout(g *gocui.Gui) error {
 	components.Input(g, v.Session)
 	components.ContactAlias(g, v.Session)
 	components.ContactHost(g, v.Session)
-	components.Error(g, v.Session.Error)
+	components.Error(g, "")
 	return nil
 }

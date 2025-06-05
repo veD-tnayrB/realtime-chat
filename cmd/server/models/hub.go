@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -24,6 +25,10 @@ type Hub struct {
 	Mutx          sync.Mutex
 	Subscriptions map[string]Conns
 }
+
+var (
+	ErrSendingMessage = fmt.Errorf("Error sending message, message structure must be JSON")
+)
 
 func (h *Hub) Connect(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -76,6 +81,8 @@ func (h *Hub) HandleEvents() {
 				continue
 			}
 
+			fmt.Printf("%s: %s :\n", event.Action, event.Event)
+
 			if event.Action == SubscribeEvent {
 				h.Subscribe(&event)
 				continue
@@ -96,12 +103,24 @@ func (h *Hub) HandleEvents() {
 
 func (h *Hub) Subscribe(event *Event) {
 	h.Mutx.Lock()
+	defer h.Mutx.Unlock()
+
 	if h.Subscriptions[event.Event] == nil {
 		h.Subscriptions[event.Event] = make(Conns)
 	}
 
+	err := json.Unmarshal(event.Data, event.From)
+	if err != nil {
+		event.From.Conn.WriteJSON(ErrResponse{Status: true, Error: ErrSendingMessage})
+		fmt.Printf("%s: %s", ErrSendingMessage, err)
+		return
+	}
+
 	h.Subscriptions[event.Event][event.From] = true
-	h.Mutx.Unlock()
+
+	for client := range h.Subscriptions[event.Event] {
+		client.Conn.WriteJSON(SuccResponse{Status: true, Data: event.From})
+	}
 }
 
 func (h *Hub) Unsubscribe(event string, client *Client) {
@@ -125,13 +144,13 @@ func (h *Hub) Broadcast(event *Event) {
 	}
 
 	for conn := range conns {
-		err := conn.Conn.WriteJSON(SuccResponse{Status: true, Data: event.Data})
+		fmt.Printf("from: %s to: %s \n", event.From.Alias, conn.Alias)
+		err := conn.Conn.WriteJSON(SuccResponse{Status: true, Data: event})
 		if err != nil {
 			// Close connection with the client if theres an issue sending the information through the conexion
 			h.Disconnect(conn)
 		}
 	}
-
 }
 
 func (h *Hub) Disconnect(client *Client) {

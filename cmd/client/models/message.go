@@ -1,6 +1,6 @@
 package models
 
 type Message struct {
-	Sender  string
-	Content string
+	Sender  string `json:"sender"`
+	Content string `json:"content"`
 }

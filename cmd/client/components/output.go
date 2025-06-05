@@ -8,20 +8,19 @@ import (
 
 func Error(g *gocui.Gui, message string) error {
 	maxX, maxY := g.Size()
-	if v, err := g.SetView("error", 0, 0, maxX-1, maxY/15); err != nil {
+	if v, err := g.SetView("output", 0, 0, maxX-1, maxY/15); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		v.Title = "Output"
-		// v.Autoscroll = true
 		v.FgColor = gocui.ColorRed
 		fmt.Fprintln(v, message)
 	}
 	return nil
 }
 
-func showError(g *gocui.Gui, message string) error {
-	view, err := g.SetCurrentView("error")
+func showOutput(g *gocui.Gui, message string) error {
+	view, err := g.SetCurrentView("output")
 	if err != nil {
 		return err
 	}
@@ -31,8 +30,8 @@ func showError(g *gocui.Gui, message string) error {
 	return nil
 }
 
-func closeError(g *gocui.Gui) error {
-	view, err := g.SetCurrentView("error")
+func closeOutput(g *gocui.Gui) error {
+	view, err := g.SetCurrentView("output")
 	if err != nil {
 		return err
 	}
@@ -40,4 +39,12 @@ func closeError(g *gocui.Gui) error {
 	fmt.Fprintln(view, "")
 	view.Highlight = true
 	return nil
+}
+
+func ListenErrors(g *gocui.Gui, errChann chan error) {
+	for {
+		err := <-errChann
+		showOutput(g, err.Error())
+	}
+
 }

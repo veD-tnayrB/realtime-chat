@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -47,6 +48,7 @@ func ContactHost(g *gocui.Gui, session *models.Session) error {
 		v.Wrap = true
 		v.Editable = true
 		g.Highlight = true
+		fmt.Fprintf(v, "ws://localhost:8080/ws")
 
 		if err := g.SetKeybinding("contact-host", gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error { return handleNewContactSave(g, v, session) }); err != nil {
 			log.Panicln(err)
@@ -78,25 +80,25 @@ func handleNewContactSave(g *gocui.Gui, v *gocui.View, session *models.Session) 
 }
 
 func AddContact(g *gocui.Gui, session *models.Session) {
-	closeError(g)
+	closeOutput(g)
 	contactAlias, err := getInputText(g, "contact-alias")
 	if err != nil {
-		showError(g, "Something went wrong while trying to get the value of the contact-alias, please report this issie")
+		showOutput(g, "Something went wrong while trying to get the value of the contact-alias, please report this issie")
 		g.SetCurrentView("contact-alias")
 		return
 	}
 
 	contactHost, err := getInputText(g, "contact-host")
 	if err != nil {
-		showError(g, "Something went wrong while trying to get the value of the contact-host, please report this issie")
+		showOutput(g, "Something went wrong while trying to get the value of the contact-host, please report this issie")
 		g.SetCurrentView("contact-host")
 		return
 	}
 
 	err = session.AddContact(contactHost, contactAlias)
 	if err != nil {
-		showError(g, err.Error())
-		if err == models.ErrProviderHostRequired {
+		showOutput(g, err.Error())
+		if err == models.ErrContactHostRequired {
 			g.SetCurrentView("contact-host")
 			return
 		}
@@ -106,9 +108,14 @@ func AddContact(g *gocui.Gui, session *models.Session) {
 		}
 
 		g.SetCurrentView("contact-host")
+		return
 	}
 
-	closeError(g)
+	closeOutput(g)
+	showOutput(g, fmt.Sprintf(`Connection with "%s" established!`, contactAlias))
+
+	v, _ := g.SetCurrentView("contact-alias")
+	v.Clear()
 	g.SetCurrentView("contacts")
 
 }

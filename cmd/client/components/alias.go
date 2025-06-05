@@ -39,7 +39,7 @@ func setAlias(g *gocui.Gui, v *gocui.View, session *models.Session) error {
 	inputText := strings.TrimSuffix(v.Buffer(), "\n")
 	inputText = strings.TrimSpace(inputText)
 
-	closeError(g)
+	closeOutput(g)
 	g.SetCurrentView("alias")
 	v.Clear()
 	fmt.Fprint(v, "") // Write inputText without extra newline
@@ -47,11 +47,14 @@ func setAlias(g *gocui.Gui, v *gocui.View, session *models.Session) error {
 	if inputText != "" {
 		session.Alias = inputText
 		fmt.Fprint(v, inputText) // Write inputText without extra newline
+
+		showOutput(g, "Your alias has been saved correctly")
 		g.SetCurrentView("contact-alias")
 		return nil
 	}
 
-	showError(g, models.ErrSessionAliasRequired.Error())
+	showOutput(g, models.ErrSessionAliasRequired.Error())
 	g.SetCurrentView("alias")
+
 	return nil
 }

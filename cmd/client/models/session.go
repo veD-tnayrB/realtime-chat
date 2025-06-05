@@ -7,17 +7,23 @@ var (
 )
 
 type Session struct {
-	Error        string
 	Alias        string
+	ErrorChann   chan error
 	ContactChann chan bool
-	ChatChann    chan bool
 	Contacts     map[string]*Contact
 	CurrentChat  *Contact
 }
 
+func NewSession() *Session {
+	errChann := make(chan error)
+	contactChann := make(chan bool)
+	contacts := map[string]*Contact{}
+	return &Session{Alias: "An0n", Contacts: contacts, ErrorChann: errChann, ContactChann: contactChann}
+}
+
 func (s *Session) AddContact(host, alias string) error {
 	if host == "" {
-		return ErrProviderHostRequired
+		return ErrContactHostRequired
 	}
 
 	if alias == "" {
@@ -29,15 +35,38 @@ func (s *Session) AddContact(host, alias string) error {
 		return nil
 	}
 
-	fmt.Printf("host: %v\n", host)
-
-	provider := Provider{Host: host}
-	err := provider.Start()
+	contact := NewContact(alias, host)
+	err := contact.Connect(s.Alias)
 	if err != nil {
-		return fmt.Errorf("%v: %v\n", ErrProviderContactingHost.Error(), err)
+		return err
 	}
-	contact := Contact{Alias: alias, Provider: &provider}
-	s.Contacts[alias] = &contact
 
+	go contact.StartListening(s.ErrorChann)
+	s.Contacts[alias] = contact
+
+	s.SetCurrentChat(contact)
 	return nil
+}
+
+func (s *Session) SendMessage(content string) {
+	if content == "" {
+		return
+	}
+
+	err := s.CurrentChat.SendMessage(s.Alias, content)
+	if err != nil {
+		s.ErrorChann <- err
+		return
+	}
+}
+
+func (s *Session) SetCurrentChat(contact *Contact) {
+	s.CurrentChat = contact
+	go s.CurrentChat.ListenEvents(s.ContactChann, s.ErrorChann)
+	s.ContactChann <- true
+}
+
+func (s *Session) Close() {
+	close(s.ErrorChann)
+	close(s.ContactChann)
 }

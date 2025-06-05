@@ -1,7 +1,6 @@
 package components
 
 import (
-	"fmt"
 	"log"
 	"strings"
 
@@ -44,7 +43,8 @@ func sendMessage(g *gocui.Gui, v *gocui.View, session *models.Session) error {
 
 	inputText := strings.TrimSpace(v.Buffer())
 	if inputText != "" {
-		fmt.Fprintln(chatView, fmt.Sprintf("[%s]: \n %v \n", session.Alias, inputText)) // Append input to chat view
+		// fmt.Fprintln(chatView, fmt.Sprintf("[%s]: \n %v \n", session.Alias, inputText)) // Append input to chat view
+		session.SendMessage(inputText)
 	}
 
 	v.Clear()

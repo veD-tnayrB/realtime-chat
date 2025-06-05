@@ -24,7 +24,7 @@ func Chat(g *gocui.Gui, session *models.Session) error {
 		v.Wrap = true
 		g.Cursor = false
 		setChatKeybinds(g)
-		go listenChat(session)
+		go listenChat(g, v, session)
 
 	}
 
@@ -113,18 +113,25 @@ func scrollDownFaster(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func renderChat(v *gocui.View, messages []models.Message) {
+func renderChat(v *gocui.View, session *models.Session) {
 	v.Clear()
 
-	for _, message := range messages {
-		// fmt.Fprintf(v, "[%v]:\n %s\n", message.Sender, message.Content)
+	for _, message := range session.CurrentChat.Messages {
+		fmt.Printf("message: %s \n", message.Content)
 		fmt.Fprintf(v, "\x1b[33m[%v]:\n \x1b[0m %s\n", message.Sender, message.Content)
-
 	}
 }
 
-func listenChat(session *models.Session) {
+func listenChat(g *gocui.Gui, v *gocui.View, session *models.Session) {
 	for {
-		<-session.ChatChann
+		<-session.ContactChann
+		if session.CurrentChat != nil {
+			g.Update(func(g *gocui.Gui) error {
+				renderChat(v, session)
+				return nil
+			})
+
+		}
+
 	}
 }

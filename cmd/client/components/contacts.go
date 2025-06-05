@@ -20,64 +20,73 @@ func ContactsSidebar(g *gocui.Gui, session *models.Session) error {
 
 		v.Title = "Contacts"
 		v.Wrap = true
-		contactKeys := []string{}
 
 		g.Cursor = false
 
-		for key := range session.Contacts {
-			contactKeys = append(contactKeys, key)
-		}
-		sort.Strings(contactKeys)
-
-		setContactsKeybindings(g, contactKeys, &selectedIndex, session)
-		renderContacts(v, &selectedIndex, contactKeys)
-		go listenContacts(session, contactKeys)
+		setContactsKeybindings(g, &selectedIndex, session)
+		renderContacts(v, &selectedIndex, session)
+		go listenContacts(g, v, &selectedIndex, session)
 	}
 
 	return nil
 }
 
-func setContactsKeybindings(g *gocui.Gui, contactKeys []string, selectedIndex *int, session *models.Session) {
-	g.SetKeybinding("contacts", 'j', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error { return cursorDown(v, contactKeys, selectedIndex) })
-	g.SetKeybinding("contacts", 'k', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error { return cursorUp(v, contactKeys, selectedIndex) })
-	g.SetKeybinding("contacts", gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error { return selectContact(contactKeys, selectedIndex, session) })
+func setContactsKeybindings(g *gocui.Gui, selectedIndex *int, session *models.Session) {
+	g.SetKeybinding("contacts", 'j', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error { return cursorDown(v, session, selectedIndex) })
+	g.SetKeybinding("contacts", 'k', gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error { return cursorUp(v, session, selectedIndex) })
+	g.SetKeybinding("contacts", gocui.KeyEnter, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error { return selectContact(g, selectedIndex, session) })
 }
 
-func cursorDown(v *gocui.View, contactKeys []string, selectedIndex *int) error {
+func cursorDown(v *gocui.View, session *models.Session, selectedIndex *int) error {
+	contactKeys := getContactKeys(session)
+
 	if *selectedIndex < len(contactKeys)-1 {
 		*selectedIndex++
 	}
-	renderContacts(v, selectedIndex, contactKeys)
+	renderContacts(v, selectedIndex, session)
 	return nil
 }
 
-func cursorUp(v *gocui.View, contactKeys []string, selectedIndex *int) error {
+func cursorUp(v *gocui.View, session *models.Session, selectedIndex *int) error {
 	if *selectedIndex > 0 {
 		*selectedIndex--
 	}
-	renderContacts(v, selectedIndex, contactKeys)
+	renderContacts(v, selectedIndex, session)
 	return nil
 }
 
-func selectContact(contactsKeys []string, selectedIndex *int, session *models.Session) error {
-	selected := contactsKeys[*selectedIndex]
-	fmt.Printf("Selected contact: %v\n", selected)
+func selectContact(g *gocui.Gui, selectedIndex *int, session *models.Session) error {
+	contactKeys := getContactKeys(session)
+
+	selected := contactKeys[*selectedIndex]
 	selectedContact := session.Contacts[selected]
 	if selectedContact == nil {
 		return fmt.Errorf("You just selected a contact that doesnt exists, tha fuck\n")
 	}
 
-	session.CurrentChat = selectedContact
-	session.ChatChann <- true
+	session.SetCurrentChat(selectedContact)
+
+	v, err := g.SetCurrentView("chat")
+	if err != nil {
+		return err
+	}
+	v.Title = selectedContact.Alias
+
+	v, err = g.SetCurrentView("input")
+	if err != nil {
+		return err
+	}
+
+	v.Clear()
 	return nil
 }
 
-func renderContacts(v *gocui.View, selectedIndex *int, contactKeys []string) {
+func renderContacts(v *gocui.View, selectedIndex *int, session *models.Session) {
 	v.Clear()
+	contactKeys := getContactKeys(session)
 
 	for i, contact := range contactKeys {
 		if i == *selectedIndex {
-			// Highlight selected item, e.g., with ">" prefix or colors
 			fmt.Fprintf(v, "> %s\n", contact)
 		} else {
 			fmt.Fprintf(v, "  %s\n", contact)
@@ -85,15 +94,21 @@ func renderContacts(v *gocui.View, selectedIndex *int, contactKeys []string) {
 	}
 }
 
-func listenContacts(session *models.Session, contactKeys []string) {
+func listenContacts(g *gocui.Gui, v *gocui.View, selectedIndex *int, session *models.Session) {
 	for {
 		<-session.ContactChann
-		contactKeys = []string{}
-
-		for key := range session.Contacts {
-			contactKeys = append(contactKeys, key)
-		}
-
-		sort.Strings(contactKeys)
+		g.Update(func(g *gocui.Gui) error {
+			renderContacts(v, selectedIndex, session)
+			return nil
+		})
 	}
+}
+
+func getContactKeys(session *models.Session) []string {
+	contactKeys := []string{}
+	for key := range session.Contacts {
+		contactKeys = append(contactKeys, key)
+	}
+	sort.Strings(contactKeys)
+	return contactKeys
 }
